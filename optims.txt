@@ -1,0 +1,10 @@
+cpu :
+- DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_AVX512=OFF
+
+os :
+ubi9
+
+
+
+
+export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt

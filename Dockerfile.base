@@ -1,0 +1,59 @@
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
+    --mount=type=cache,target=/var/cache/yum,sharing=locked \
+    dnf update -y
+
+ENV DEPS="\
+    coreutils-single \
+    glibc-minimal-langpack \
+    openssl \
+    openssl-devel \
+    zlib-devel \
+    wget \
+    git \
+    cmake \
+    ninja-build \
+    gcc \
+    gcc-c++ \
+    nodejs \
+    npm \
+    perl-core \
+    libstdc++-static \
+    "
+
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
+    --mount=type=cache,target=/var/cache/yum,sharing=locked \
+    dnf install -y ${DEPS}
+
+RUN wget https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz && \
+    tar -xzf zlib-1.3.1.tar.gz && \
+    cd zlib-1.3.1 && \
+    ./configure --static && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf zlib-1.3.1 zlib-1.3.1.tar.gz
+
+RUN wget https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz && \
+    tar -xzf openssl-3.3.1.tar.gz && \
+    cd openssl-3.3.1 && \
+    ./config no-shared --prefix=/usr/local/ssl --openssldir=/etc/pki/tls && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf openssl-3.3.1 openssl-3.3.1.tar.gz
+
+ENV OPENSSL_ROOT_DIR="/usr/local/ssl"
+
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+
+RUN wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
+RUN tar -xzf ccache-4.13.6-linux-x86_64-glibc.tar.gz -C /usr/local/bin/ --strip-components=1 --no-same-owner --no-same-permissions
+
+RUN mkdir -p /usr/local/bin/ccache_stubs
+RUN ln -s ccache /usr/local/bin/ccache_stubs/nvcc
+RUN ln -s ccache /usr/local/bin/ccache_stubs/gcc
+RUN ln -s ccache /usr/local/bin/ccache_stubs/g++
+
+ENV PATH="/usr/local/bin/ccache_stubs:${PATH}"
+
+WORKDIR /work

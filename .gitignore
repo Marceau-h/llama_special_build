@@ -1,0 +1,7 @@
+.idea/
+llama.cpp/
+
+Dockerfile.ubi
+
+*.tar.gz
+*.zip
