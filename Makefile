@@ -3,63 +3,60 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := package
 .PHONY: build_static build_dynamic package_static package_dynamic package clean
 
-ARCHS ?= 86;89
-
-# Static configuration
-BUILD_STATIC := build_static
-DIST_STATIC := dist_static
-PKG_STATIC := llama-cuda86-89-static-portable.tar.gz
-
-# Dynamic configuration*
-BUILD_DYNAMIC := build_dynamic
-DIST_DYNAMIC := dist_dynamic
-PKG_DYNAMIC := llama-cuda86-89-dynamic-portable.tar.gz
+# Include environment variables
+-include $(dir $(abspath $(lastword $(MAKEFILE_LIST)))).env
 
 build_static:
 	@echo "--- Configuring llama.cpp (Static) ---"
 	mkdir -p $(BUILD_STATIC)
 	cmake -B $(BUILD_STATIC) -S . -G Ninja \
 		-DGGML_CUDA=ON \
-		-DCMAKE_CUDA_ARCHITECTURES="$(ARCHS)" \
+		-DCMAKE_CUDA_ARCHITECTURES="$(subst ",,$(ARCHS))" \
 		-DGGML_NATIVE=OFF \
 		-DGGML_VULKAN=OFF \
 		-DGGML_STATIC=ON \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DGGML_BUILD_EXAMPLES=OFF \
+		-DLLAMA_BUILD_TESTS=OFF \
 		-DLLAMA_BUILD_SERVER=ON \
+		-DLLAMA_BUILD_UI=OFF \
 		-DOPENSSL_USE_STATIC_LIBS=ON \
+		-DNCCL_LIBRARY=/usr/lib64/libnccl_static.a \
 		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs" \
 		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
 	@echo "--- Building llama.cpp (Static) ---"
-	cmake --build $(BUILD_STATIC) -j
+	cmake --build $(BUILD_STATIC) -j$$(($$(nproc) - 1))
 
 build_dynamic:
 	@echo "--- Configuring llama.cpp (Dynamic) ---"
 	mkdir -p $(BUILD_DYNAMIC)
 	cmake -B $(BUILD_DYNAMIC) -S . -G Ninja \
 		-DGGML_CUDA=ON \
-		-DCMAKE_CUDA_ARCHITECTURES="$(ARCHS)" \
+		-DCMAKE_CUDA_ARCHITECTURES="$(subst ",,$(ARCHS))" \
 		-DGGML_NATIVE=OFF \
 		-DGGML_VULKAN=OFF \
 		-DGGML_STATIC=OFF \
 		-DBUILD_SHARED_LIBS=ON \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DGGML_BUILD_EXAMPLES=OFF \
+		-DLLAMA_BUILD_TESTS=OFF \
 		-DLLAMA_BUILD_SERVER=ON \
-		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs" \
+		-DLLAMA_BUILD_UI=OFF \
+		-DOPENSSL_USE_STATIC_LIBS=ON \
+		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -ldl" \
 		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs"
 	@echo "--- Building llama.cpp (Dynamic) ---"
-	cmake --build $(BUILD_DYNAMIC) -j
+	cmake --build $(BUILD_DYNAMIC) -j$$(($$(nproc) - 1))
 
 package_static: build_static
 	@echo "--- Packaging (Static) ---"
 	rm -rf $(DIST_STATIC)
-	mkdir -p $(DIST_STATIC)/bin $(DIST_STATIC)/lib
+	mkdir -p $(DIST_STATIC)
 
-	cp -a $(BUILD_STATIC)/bin/llama-cli $(DIST_STATIC)/bin/
-	cp -a $(BUILD_STATIC)/bin/llama-server $(DIST_STATIC)/bin/
+	cp -a $(BUILD_STATIC)/bin/llama-cli $(DIST_STATIC)/
+	cp -a $(BUILD_STATIC)/bin/llama-server $(DIST_STATIC)/
 
 	tar -C $(DIST_STATIC) -czf /work/$(PKG_STATIC) .
 	@echo "--- Created $(PKG_STATIC) ---"
@@ -82,11 +79,7 @@ package_dynamic: build_dynamic
 		ldd "$$lib" | awk 'NF == 4 { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia' | xargs -I {} cp -n {} $(DIST_DYNAMIC)/lib/ 2>/dev/null || true ; \
 	done
 
-	echo '#!/usr/bin/env bash' > $(DIST_DYNAMIC)/bin/run-llama-server.sh
-	echo 'set -euo pipefail' >> $(DIST_DYNAMIC)/bin/run-llama-server.sh
-	echo 'D="$$(cd -- "$$(dirname -- "$${BASH_SOURCE[0]}")" && pwd)"' >> $(DIST_DYNAMIC)/bin/run-llama-server.sh
-	echo 'export LD_LIBRARY_PATH="$$D/../lib:$${LD_LIBRARY_PATH:-}"' >> $(DIST_DYNAMIC)/bin/run-llama-server.sh
-	echo 'exec "$$D/llama-server" "$$@"' >> $(DIST_DYNAMIC)/bin/run-llama-server.sh
+	cp /work/run-llama-server.sh $(DIST_DYNAMIC)/bin/run-llama-server.sh
 	chmod +x $(DIST_DYNAMIC)/bin/run-llama-server.sh
 
 	tar -C $(DIST_DYNAMIC) -czf /work/$(PKG_DYNAMIC) .

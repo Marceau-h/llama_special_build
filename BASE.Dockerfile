@@ -14,9 +14,10 @@ ENV DEPS="\
     ninja-build \
     gcc \
     gcc-c++ \
-    nodejs \
-    npm \
     perl-core \
+    xz \
+    libnccl-devel \
+    libnccl-static \
     libstdc++-static \
     "
 
@@ -55,5 +56,11 @@ RUN ln -s ccache /usr/local/bin/ccache_stubs/gcc
 RUN ln -s ccache /usr/local/bin/ccache_stubs/g++
 
 ENV PATH="/usr/local/bin/ccache_stubs:${PATH}"
+
+RUN wget https://nodejs.org/dist/latest-v22.x/node-v22.22.3-linux-x64.tar.xz && \
+    tar -xf node-v22.22.3-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
+    rm node-v22.22.3-linux-x64.tar.xz
+
+RUN git config --global --add safe.directory '*'
 
 WORKDIR /work
