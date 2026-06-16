@@ -27,7 +27,7 @@ set +a
 
 echo -e "${FULL_DOCKERFILE_CONTENT}" > "${SCRIPT_DIR}/${DOCKERFILE_UBI}"
 
-if docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1; then
+if [ docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1 ] && [ ${NO_CACHE:-false} != "true" ]; then
     log_info "Image ${GHCR_IMAGE_NAME} found"
     docker buildx build \
         -t "${DOCKER_IMAGE_NAME}" \
