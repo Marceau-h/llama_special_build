@@ -23,7 +23,10 @@ ENV DEPS="\
 
 RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
     --mount=type=cache,target=/var/cache/yum,sharing=locked \
-    dnf install -y ${DEPS}
+    dnf install -y ${DEPS} && \
+    if grep -q 'release 8' /etc/redhat-release; then \
+        dnf install -y gcc-toolset-13 gcc-toolset-13-gcc-c++; \
+    fi
 
 RUN wget https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz && \
     tar -xzf zlib-1.3.1.tar.gz && \
@@ -55,7 +58,7 @@ RUN ln -s ccache /usr/local/bin/ccache_stubs/nvcc
 RUN ln -s ccache /usr/local/bin/ccache_stubs/gcc
 RUN ln -s ccache /usr/local/bin/ccache_stubs/g++
 
-ENV PATH="/usr/local/bin/ccache_stubs:${PATH}"
+ENV PATH="/usr/local/bin/ccache_stubs:/opt/rh/gcc-toolset-13/root/usr/bin:${PATH}"
 
 RUN wget https://nodejs.org/dist/latest-v22.x/node-v22.22.3-linux-x64.tar.xz && \
     tar -xf node-v22.22.3-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
