@@ -6,13 +6,25 @@ SHELL := /bin/bash
 # Include environment variables
 -include $(dir $(abspath $(lastword $(MAKEFILE_LIST)))).env
 
+ARCHS ?= 86;89
+GGML_NATIVE ?= OFF
+CPU_FLAGS ?= 
+PKG_STATIC ?= llama-static-portable.tar.gz
+PKG_DYNAMIC ?= llama-dynamic-portable.tar.gz
+BUILD_STATIC ?= build_static
+DIST_STATIC ?= dist_static
+BUILD_DYNAMIC ?= build_dynamic
+DIST_DYNAMIC ?= dist_dynamic
+
 build_static:
 	@echo "--- Configuring llama.cpp (Static) ---"
 	mkdir -p $(BUILD_STATIC)
 	cmake -B $(BUILD_STATIC) -S . -G Ninja \
 		-DGGML_CUDA=ON \
 		-DCMAKE_CUDA_ARCHITECTURES="$(subst ",,$(ARCHS))" \
-		-DGGML_NATIVE=OFF \
+		-DGGML_NATIVE=$(GGML_NATIVE) \
+		-DCMAKE_C_FLAGS="$(CPU_FLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(CPU_FLAGS)" \
 		-DGGML_VULKAN=OFF \
 		-DGGML_STATIC=ON \
 		-DBUILD_SHARED_LIBS=OFF \
@@ -21,10 +33,12 @@ build_static:
 		-DLLAMA_BUILD_TESTS=OFF \
 		-DLLAMA_BUILD_SERVER=ON \
 		-DLLAMA_BUILD_UI=OFF \
+		-DLLAMA_USE_PREBUILT_UI=OFF \
 		-DOPENSSL_USE_STATIC_LIBS=ON \
 		-DNCCL_LIBRARY=/usr/lib64/libnccl_static.a \
-		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs" \
-		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
+		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -L/usr/local/cuda/lib64 -lcudart_static -lcudadevrt -lrt -lpthread -ldl" \
+		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+		-DCMAKE_CUDA_FLAGS="--compiler-options -static-libgcc"
 	@echo "--- Building llama.cpp (Static) ---"
 	cmake --build $(BUILD_STATIC) -j$$(($$(nproc) - 1))
 
@@ -34,7 +48,9 @@ build_dynamic:
 	cmake -B $(BUILD_DYNAMIC) -S . -G Ninja \
 		-DGGML_CUDA=ON \
 		-DCMAKE_CUDA_ARCHITECTURES="$(subst ",,$(ARCHS))" \
-		-DGGML_NATIVE=OFF \
+		-DGGML_NATIVE=$(GGML_NATIVE) \
+		-DCMAKE_C_FLAGS="$(CPU_FLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(CPU_FLAGS)" \
 		-DGGML_VULKAN=OFF \
 		-DGGML_STATIC=OFF \
 		-DBUILD_SHARED_LIBS=ON \
@@ -43,6 +59,7 @@ build_dynamic:
 		-DLLAMA_BUILD_TESTS=OFF \
 		-DLLAMA_BUILD_SERVER=ON \
 		-DLLAMA_BUILD_UI=OFF \
+		-DLLAMA_USE_PREBUILT_UI=OFF \
 		-DOPENSSL_USE_STATIC_LIBS=ON \
 		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -ldl" \
 		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs" \
@@ -71,12 +88,12 @@ package_dynamic: build_dynamic
 
 	# Collect shared libraries for the binaries
 	for bin in $(DIST_DYNAMIC)/bin/llama-cli $(DIST_DYNAMIC)/bin/llama-server; do \
-		ldd "$$bin" | awk 'NF == 4 { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia' | xargs -I {} cp -v {} $(DIST_DYNAMIC)/lib/ || true ; \
+		ldd "$$bin" | awk 'NF == 4 && $$3 ~ /^\// { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia|/libgcc_s\.so|/libstdc\+\+\.so' | xargs -I {} cp -v {} $(DIST_DYNAMIC)/lib/ || true ; \
 	done
 
 	# Also recursively collect shared libraries for the libraries themselves (e.g. libllama.so might depend on other things)
 	for lib in $(DIST_DYNAMIC)/lib/*.so*; do \
-		ldd "$$lib" | awk 'NF == 4 { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia' | xargs -I {} cp -n {} $(DIST_DYNAMIC)/lib/ 2>/dev/null || true ; \
+		ldd "$$lib" | awk 'NF == 4 && $$3 ~ /^\// { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia|/libgcc_s\.so|/libstdc\+\+\.so' | xargs -I {} cp -n {} $(DIST_DYNAMIC)/lib/ 2>/dev/null || true ; \
 	done
 
 	cp /work/run-llama-server.sh $(DIST_DYNAMIC)/bin/run-llama-server.sh
