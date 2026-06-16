@@ -59,12 +59,7 @@ else
     REAL_TARGET="package_${MAKE_TARGET}"
 fi
 
-PREPEND="# syntax = docker/dockerfile:experimental"
 LABEL="${CUDA}-${FLAVOR}-${OS}"
-IMG="${BASE_IMG}:${LABEL}"
-FULL_PREPEND="${PREPEND}\nFROM ${IMG}\n"
-DOCKERFILE_UBI="${LABEL}.Dockerfile"
-
 LLAMA_DIR="${SCRIPT_DIR}/${LLAMA_DIR_NAME}"
 
 set +a
@@ -81,22 +76,6 @@ else
     git pull || true
     cd "${SCRIPT_DIR}"
 fi
-
-echo "====================================="
-echo "DOCKER BUILD"
-echo "====================================="
-{
-    echo -e "${FULL_PREPEND}"
-    cat "${SCRIPT_DIR}/${DOCKERFILE_BASE}"
-} > "${SCRIPT_DIR}/${DOCKERFILE_UBI}"
-
-docker buildx build \
-    -t "${DOCKER_USER}/${OUT_IMG}:${LABEL}" \
-    -f "${SCRIPT_DIR}/${DOCKERFILE_UBI}" \
-    --build-arg CUDA="${CUDA}" \
-    --build-arg FLAVOR="${FLAVOR}" \
-    --build-arg OS="${OS}" \
-    "${SCRIPT_DIR}"
 
 echo "================================="
 echo "MAKE"
@@ -119,7 +98,7 @@ docker run --rm -it --network=host \
     -v "${SCRIPT_DIR}:/work:Z" \
     -v "${LLAMA_DIR}:/work/${LLAMA_DIR_NAME}:Z" \
     -w "/work/${LLAMA_DIR_NAME}" \
-    "${OUT_IMG}:${LABEL}" \
+    "${DOCKER_USER}/${OUT_IMG}:${LABEL}" \
     bash -c "${MAKE_COMMAND}"
 
 echo "Outputs :"
