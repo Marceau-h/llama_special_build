@@ -1,7 +1,8 @@
 .idea/
 llama.cpp/
 
-Dockerfile.ubi
+*.Dockerfile
+!BASE.Dockerfile
 
 *.tar.gz
 *.zip
