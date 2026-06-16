@@ -91,7 +91,7 @@ echo "====================================="
 } > "${SCRIPT_DIR}/${DOCKERFILE_UBI}"
 
 docker buildx build \
-    -t "${OUT_IMG}:${LABEL}" \
+    -t "${DOCKER_USER}/${OUT_IMG}:${LABEL}" \
     -f "${SCRIPT_DIR}/${DOCKERFILE_UBI}" \
     --build-arg CUDA="${CUDA}" \
     --build-arg FLAVOR="${FLAVOR}" \
