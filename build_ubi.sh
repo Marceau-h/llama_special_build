@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euao pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="${SCRIPT_DIR}/build.log"
@@ -23,13 +23,51 @@ else
     exit 1
 fi
 
-POSSIBLE_TARGETS=("package" "package_static" "package_dynamic")
-if [[ ! " ${POSSIBLE_TARGETS[*]} " =~ " ${TARGET} " ]]; then
-    log_error "Invalid target: ${TARGET}. Valid options are: ${POSSIBLE_TARGETS[*]}"
+# Parse TARGET profile
+if [[ "$TARGET" == default_* ]]; then
+    OS="ubi8"
+    ARCHS="86;89"
+    GGML_NATIVE="OFF"
+    CPU_FLAGS=""
+    PKG_PREFIX="llama-default"
+    MAKE_TARGET="${TARGET#default_}"
+elif [[ "$TARGET" == full_* ]]; then
+    OS="ubi8"
+    ARCHS="75;80;86;89;90"
+    GGML_NATIVE="OFF"
+    CPU_FLAGS=""
+    PKG_PREFIX="llama-full"
+    MAKE_TARGET="${TARGET#full_}"
+elif [[ "$TARGET" == tailored_* ]]; then
+    OS="ubi8"
+    ARCHS="86;89"
+    GGML_NATIVE="OFF"
+    CPU_FLAGS="-march=znver3"
+    PKG_PREFIX="llama-tailored"
+    MAKE_TARGET="${TARGET#tailored_}"
+else
+    log_error "Invalid target: ${TARGET}. Valid prefixes: default_, full_, tailored_ (followed by static, dynamic, or package)"
     exit 1
 fi
 
+PKG_STATIC="${PKG_PREFIX}-static.tar.gz"
+PKG_DYNAMIC="${PKG_PREFIX}-dynamic.tar.gz"
+
+if [[ "$MAKE_TARGET" == "package" ]]; then
+    REAL_TARGET="package"
+else
+    REAL_TARGET="package_${MAKE_TARGET}"
+fi
+
+PREPEND="# syntax = docker/dockerfile:experimental"
+LABEL="${CUDA}-${FLAVOR}-${OS}"
+IMG="${BASE_IMG}:${LABEL}"
+FULL_PREPEND="${PREPEND}\nFROM ${IMG}\n"
+DOCKERFILE_UBI="${LABEL}.Dockerfile"
+
 LLAMA_DIR="${SCRIPT_DIR}/${LLAMA_DIR_NAME}"
+
+set +a
 
 cd "${SCRIPT_DIR}"
 
@@ -64,10 +102,20 @@ echo "================================="
 echo "MAKE"
 echo "================================="
 MAKE_COMMAND="\
-    make -f /work/${MAKEFILE} ${TARGET:-package} \
+    export CC=gcc CXX=g++ && \
+    make -f /work/${MAKEFILE} ${REAL_TARGET} \
     "
 
-docker run --rm -it \
+docker run --rm -it --network=host \
+    -e ARCHS="${ARCHS}" \
+    -e GGML_NATIVE="${GGML_NATIVE}" \
+    -e CPU_FLAGS="${CPU_FLAGS}" \
+    -e PKG_STATIC="${PKG_STATIC}" \
+    -e PKG_DYNAMIC="${PKG_DYNAMIC}" \
+    -e BUILD_STATIC="build_static_${PKG_PREFIX}" \
+    -e BUILD_DYNAMIC="build_dynamic_${PKG_PREFIX}" \
+    -e DIST_STATIC="dist_static_${PKG_PREFIX}" \
+    -e DIST_DYNAMIC="dist_dynamic_${PKG_PREFIX}" \
     -v "${SCRIPT_DIR}:/work:Z" \
     -v "${LLAMA_DIR}:/work/${LLAMA_DIR_NAME}:Z" \
     -w "/work/${LLAMA_DIR_NAME}" \
@@ -75,5 +123,5 @@ docker run --rm -it \
     bash -c "${MAKE_COMMAND}"
 
 echo "Outputs :"
-echo "- ${SCRIPT_DIR}/llama-cuda86-89-static-portable.tar.gz"
-echo "- ${SCRIPT_DIR}/llama-cuda86-89-dynamic-portable.tar.gz"
+echo "- ${SCRIPT_DIR}/${PKG_STATIC}"
+echo "- ${SCRIPT_DIR}/${PKG_DYNAMIC}"
