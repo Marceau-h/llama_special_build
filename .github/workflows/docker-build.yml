@@ -1,0 +1,86 @@
+name: Docker Build and Push
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Load .env file
+        uses: falti/dotenv-action@v1.2.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.1.0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ env.DOCKER_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if build is needed
+        id: check_build
+        run: |
+          LAST_BUILD_COMMIT=$(jq -r .last_build_commit last_build.json || echo "")
+          if [[ -z "$LAST_BUILD_COMMIT" ]]; then
+            echo "No build found"
+            echo "::set-output name=needs_build::true"
+            exit 0
+          fi
+
+          if [[ "$LAST_BUILD_COMMIT" == "${{ github.sha }}" ]]; then
+            echo "Code has not changed"
+            echo "::set-output name=needs_build::false"
+            exit 0
+          fi
+
+          echo "Code has changed and last build commit is $LAST_BUILD_COMMIT"
+          git diff --quiet $LAST_BUILD_COMMIT ${{ github.sha }} -- .env build_docker.sh BASE.Dockerfile
+          if [[ $? -eq 0 ]]; then
+            echo "No relevant changes"
+            echo "::set-output name=needs_build::false"
+          else
+            echo "Relevant files changed"
+            echo "::set-output name=needs_build::true"
+          fi
+
+      - name: Build and Push Docker image
+        if: steps.check_build.outputs.needs_build == 'true'
+        run: |
+          chmod +x build_docker.sh
+          ./build_docker.sh
+          
+          docker tag ${{ env.DOCKER_IMAGE_NAME }} ghcr.io/${{ env.GHCR_REPO }}:${{ env.LABEL }}
+          docker push ${{ env.DOCKER_IMAGE_NAME }}
+          docker push ghcr.io/${{ env.GHCR_REPO }}:${{ env.LABEL }}
+
+      - name: Update last build info
+        if: steps.check_build.outputs.needs_build == 'true'
+        run: |
+          DOCKERFILE_HASH=$(docker inspect --format '{{ index .Config.Labels "DOCKERFILE_HASH"}}' ${{ env.DOCKER_IMAGE_NAME }})
+          
+          echo '{
+            "last_build_commit": "${{ github.sha }}",
+            "build_date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "docker_image": "'${{ env.DOCKER_IMAGE_NAME }}'",
+            "dockerfile_hash": "'$DOCKERFILE_HASH'"
+          }' > last_build.json
+          git add last_build.json
+          git commit -m "Update last build info"
+          git push
