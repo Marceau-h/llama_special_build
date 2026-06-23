@@ -52,7 +52,7 @@ jobs:
           fi
 
           echo "Code has changed and last build commit is $LAST_BUILD_COMMIT"
-          git diff --quiet $LAST_BUILD_COMMIT ${{ github.sha }} -- .env build_docker.sh BASE.Dockerfile
+          git diff --quiet $LAST_BUILD_COMMIT ${{ github.sha }} -- .env build_docker.sh Dockerfile
           if [[ $? -eq 0 ]]; then
             echo "No relevant changes"
             echo "::set-output name=needs_build::false"
