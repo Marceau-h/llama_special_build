@@ -1,3 +1,10 @@
+# syntax = docker/dockerfile:experimental
+ARG IMG
+FROM ${IMG}
+
+ARG IMG
+ENV BASE_IMAGE=${IMG}
+
 RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
     --mount=type=cache,target=/var/cache/yum,sharing=locked \
     dnf update -y
@@ -28,6 +35,23 @@ RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
         dnf install -y gcc-toolset-13 gcc-toolset-13-gcc-c++; \
     fi
 
+RUN wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
+RUN tar -xzf ccache-4.13.6-linux-x86_64-glibc.tar.gz \
+    -C /usr/local/bin/ \
+    --strip-components=1 \
+    --no-same-owner \
+    --no-same-permissions \
+    && rm ccache-4.13.6-linux-x86_64-glibc.tar.gz \
+    && mkdir -p /usr/local/bin/ccache_stubs \
+    && ln -s ccache /usr/local/bin/ccache_stubs/nvcc \
+    && ln -s ccache /usr/local/bin/ccache_stubs/gcc \
+    && ln -s ccache /usr/local/bin/ccache_stubs/g++
+
+ENV OPENSSL_ROOT_DIR="/usr/local/ssl"
+ENV PATH="/usr/local/bin/ccache_stubs:/opt/rh/gcc-toolset-13/root/usr/bin:${PATH}"
+
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+
 RUN wget https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz && \
     tar -xzf zlib-1.3.1.tar.gz && \
     cd zlib-1.3.1 && \
@@ -46,23 +70,9 @@ RUN wget https://github.com/openssl/openssl/releases/download/openssl-3.3.1/open
     cd .. && \
     rm -rf openssl-3.3.1 openssl-3.3.1.tar.gz
 
-ENV OPENSSL_ROOT_DIR="/usr/local/ssl"
-
-RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
-
-RUN wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
-RUN tar -xzf ccache-4.13.6-linux-x86_64-glibc.tar.gz -C /usr/local/bin/ --strip-components=1 --no-same-owner --no-same-permissions
-
-RUN mkdir -p /usr/local/bin/ccache_stubs
-RUN ln -s ccache /usr/local/bin/ccache_stubs/nvcc
-RUN ln -s ccache /usr/local/bin/ccache_stubs/gcc
-RUN ln -s ccache /usr/local/bin/ccache_stubs/g++
-
-ENV PATH="/usr/local/bin/ccache_stubs:/opt/rh/gcc-toolset-13/root/usr/bin:${PATH}"
-
-RUN wget https://nodejs.org/dist/latest-v22.x/node-v22.22.3-linux-x64.tar.xz && \
-    tar -xf node-v22.22.3-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
-    rm node-v22.22.3-linux-x64.tar.xz
+RUN wget https://nodejs.org/dist/v22.23.0/node-v22.23.0-linux-x64.tar.xz && \
+    tar -xf node-v22.23.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
+    rm node-v22.23.0-linux-x64.tar.xz
 
 RUN git config --global --add safe.directory '*'
 

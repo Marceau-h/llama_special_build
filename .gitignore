@@ -2,7 +2,7 @@
 llama.cpp/
 
 *.Dockerfile
-!BASE.Dockerfile
+!Dockerfile
 
 *.tar.gz
 *.zip

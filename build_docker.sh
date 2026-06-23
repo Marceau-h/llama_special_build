@@ -19,22 +19,17 @@ else
     exit 1
 fi
 
-DOCKERFILE_CONTENT=$(cat "${SCRIPT_DIR}/${DOCKERFILE_BASE}")
-FULL_DOCKERFILE_CONTENT="${PREPEND}${DOCKERFILE_CONTENT}"
-LOCAL_DOCKERFILE_HASH=$(echo -e "${FULL_DOCKERFILE_CONTENT}" | sha256sum | awk '{print $1}')
+LOCAL_DOCKERFILE_HASH=$(sha256sum "${SCRIPT_DIR}/${DOCKERFILE_BASE}" | awk '{print $1}')
 
 set +a
 
-echo -e "${FULL_DOCKERFILE_CONTENT}" > "${SCRIPT_DIR}/${DOCKERFILE_UBI}"
 
 if [ docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1 ] && [ ${NO_CACHE:-false} != "true" ]; then
     log_info "Image ${GHCR_IMAGE_NAME} found"
     docker buildx build \
         -t "${DOCKER_IMAGE_NAME}" \
-        -f "${SCRIPT_DIR}/${DOCKERFILE_UBI}" \
-        --build-arg CUDA="${CUDA}" \
-        --build-arg FLAVOR="${FLAVOR}" \
-        --build-arg OS="${OS}" \
+        -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
+        --build-arg IMG="${IMG}" \
         --cache-from "${GHCR_IMAGE_NAME}" \
         --label "DOCKERFILE_HASH=${LOCAL_DOCKERFILE_HASH}" \
         "${SCRIPT_DIR}"
@@ -42,10 +37,8 @@ else
     log_info "Image ${GHCR_IMAGE_NAME} not found"
     docker buildx build \
         -t "${DOCKER_IMAGE_NAME}" \
-        -f "${SCRIPT_DIR}/${DOCKERFILE_UBI}" \
-        --build-arg CUDA="${CUDA}" \
-        --build-arg FLAVOR="${FLAVOR}" \
-        --build-arg OS="${OS}" \
+        -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
+        --build-arg IMG="${IMG}" \
         --label "DOCKERFILE_HASH=${LOCAL_DOCKERFILE_HASH}" \
         "${SCRIPT_DIR}"
 fi
