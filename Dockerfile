@@ -64,14 +64,14 @@ RUN wget https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.xz &
     cd .. && \
     rm -rf zlib-1.4 zlib-1.4.tar.xz
 
-RUN wget https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz && \
-    tar -xzf openssl-3.3.1.tar.gz && \
-    cd openssl-3.3.1 && \
+RUN wget https://github.com/openssl/openssl/releases/download/openssl-4.1.0/openssl-4.1.0.tar.gz && \
+    tar -xzf openssl-4.1.0.tar.gz && \
+    cd openssl-4.1.0 && \
     ./config no-shared --prefix=/usr/local/ssl --openssldir=/etc/pki/tls && \
     make -j$(nproc) && \
     make install && \
     cd .. && \
-    rm -rf openssl-3.3.1 openssl-3.3.1.tar.gz
+    rm -rf openssl-4.1.0 openssl-4.1.0.tar.gz
 
 RUN wget https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.xz && \
     tar -xf node-v26.9.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
