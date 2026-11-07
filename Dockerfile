@@ -36,17 +36,19 @@ RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
         dnf install -y gcc-toolset-13 gcc-toolset-13-gcc-c++; \
     fi
 
-RUN wget https://github.com/ccache/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.gz
-RUN tar -xzf ccache-4.13.6-linux-x86_64-glibc.tar.gz \
+RUN wget https://github.com/ccache/ccache/releases/download/v4.14.2/ccache-4.14.2-linux-x86_64-glibc.tar.xz
+RUN tar -xJf ccache-4.14.2-linux-x86_64-glibc.tar.xz \
     -C /usr/local/bin/ \
     --strip-components=1 \
     --no-same-owner \
     --no-same-permissions \
-    && rm ccache-4.13.6-linux-x86_64-glibc.tar.gz \
+    && rm ccache-4.14.2-linux-x86_64-glibc.tar.xz \
     && mkdir -p /usr/local/bin/ccache_stubs \
-    && ln -s ccache /usr/local/bin/ccache_stubs/nvcc \
-    && ln -s ccache /usr/local/bin/ccache_stubs/gcc \
-    && ln -s ccache /usr/local/bin/ccache_stubs/g++
+    && ln -s /usr/local/bin/ccache /usr/local/bin/ccache_stubs/nvcc \
+    && ln -s /usr/local/bin/ccache /usr/local/bin/ccache_stubs/gcc \
+    && ln -s /usr/local/bin/ccache /usr/local/bin/ccache_stubs/g++ \
+    && ln -s /usr/local/bin/ccache /usr/local/bin/ccache_stubs/cc \
+    && ln -s /usr/local/bin/ccache /usr/local/bin/ccache_stubs/c++
 
 ENV OPENSSL_ROOT_DIR="/usr/local/ssl"
 ENV PATH="/usr/local/bin/ccache_stubs:/opt/rh/gcc-toolset-13/root/usr/bin:${PATH}"
