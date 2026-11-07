@@ -65,6 +65,8 @@ build_dynamic:
 		-DLLAMA_USE_PREBUILT_UI=OFF \
 		-DOPENSSL_USE_STATIC_LIBS=ON \
 		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -ldl" \
+		-DCMAKE_INSTALL_RPATH='$$ORIGIN:$$ORIGIN/../lib' \
+		-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
 		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs"
 	@echo "--- Building llama.cpp (Dynamic) ---"
