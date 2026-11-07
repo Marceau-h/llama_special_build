@@ -89,6 +89,7 @@ MAKE_COMMAND="\
     "
 
 docker run --rm -it --network=host \
+    -e NVIDIA_VISIBLE_DEVICES=none \
     -e ARCHS="${ARCHS}" \
     -e GGML_NATIVE="${GGML_NATIVE}" \
     -e CPU_FLAGS="${CPU_FLAGS}" \
