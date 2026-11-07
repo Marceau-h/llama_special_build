@@ -92,12 +92,13 @@ package_dynamic: build_dynamic
 	cp -a $(BUILD_DYNAMIC)/bin/llama-server $(DIST_DYNAMIC)/bin/
 
 	# Collect shared libraries for the binaries
-	for bin in $(DIST_DYNAMIC)/bin/llama-cli $(DIST_DYNAMIC)/bin/llama-server; do \
+	for bin in $(BUILD_DYNAMIC)/bin/llama-cli $(BUILD_DYNAMIC)/bin/llama-server; do \
 		ldd "$$bin" | awk 'NF == 4 && $$3 ~ /^\// { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia|/libgcc_s\.so|/libstdc\+\+\.so' | xargs -I {} cp -v {} $(DIST_DYNAMIC)/lib/ || true ; \
 	done
 
 	# Also recursively collect shared libraries for the libraries themselves (e.g. libllama.so might depend on other things)
 	for lib in $(DIST_DYNAMIC)/lib/*.so*; do \
+		[ -f "$$lib" ] || continue ; \
 		ldd "$$lib" | awk 'NF == 4 && $$3 ~ /^\// { print $$3 }' | grep -vE '/libc\.so|/libm\.so|/libdl\.so|/libpthread\.so|/librt\.so|/ld-linux|libcuda\.so|libnvidia|/libgcc_s\.so|/libstdc\+\+\.so' | xargs -I {} cp -n {} $(DIST_DYNAMIC)/lib/ 2>/dev/null || true ; \
 	done
 
