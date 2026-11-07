@@ -72,10 +72,11 @@ echo "====================================="
 if [ ! -d "${LLAMA_DIR}" ]; then
     git clone "${LLAMA_REPO}" "${LLAMA_DIR}"
 else
-    cd "${LLAMA_DIR}"
-    git pull || true
-    cd "${SCRIPT_DIR}"
+    git -C "${LLAMA_DIR}" reset --hard HEAD
+    git -C "${LLAMA_DIR}" pull
 fi
+
+git -C "${LLAMA_DIR}" apply "${SCRIPT_DIR}/ca_probe.patch"
 
 echo "================================="
 echo "MAKE"

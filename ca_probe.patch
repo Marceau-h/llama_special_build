@@ -1,0 +1,35 @@
+diff --git a/common/http.h b/common/http.h
+index 10d017f17..fd4006060 100644
+--- a/common/http.h
++++ b/common/http.h
+@@ -237,6 +237,30 @@ static std::pair<httplib::Client, common_http_url> common_http_client(const std:
+ 
+     cli.set_follow_location(true);
+ 
++#if defined(CPPHTTPLIB_OPENSSL_SUPPORT) && !defined(_WIN32) && !defined(__APPLE__)
++    if (parts.scheme == "https") {
++        const char * ssl_file = std::getenv("SSL_CERT_FILE");
++        const char * ssl_dir  = std::getenv("SSL_CERT_DIR");
++        if (ssl_file || ssl_dir) {
++            cli.set_ca_cert_path(ssl_file ? ssl_file : "", ssl_dir ? ssl_dir : "");
++        } else {
++            static const char * const ca_bundle_paths[] = {
++                "/etc/ssl/certs/ca-certificates.crt",
++                "/etc/pki/tls/certs/ca-bundle.crt",
++                "/etc/ssl/ca-bundle.pem",
++                "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
++                "/etc/ssl/cert.pem",
++            };
++            for (const char * ca_path : ca_bundle_paths) {
++                if (access(ca_path, R_OK) == 0) {
++                    cli.set_ca_cert_path(ca_path);
++                    break;
++                }
++            }
++        }
++    }
++#endif
++
+     // Honor HTTP_PROXY / HTTPS_PROXY environment variables (both lower- and upper-case).
+     auto getenv_s = [](const char * upper, const char * lower) -> std::string {
+         const char * val = std::getenv(upper);
