@@ -26,6 +26,7 @@ ENV DEPS="\
     libnccl-devel \
     libnccl-static \
     libstdc++-static \
+    libatomic \
     "
 
 RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
@@ -70,9 +71,9 @@ RUN wget https://github.com/openssl/openssl/releases/download/openssl-3.3.1/open
     cd .. && \
     rm -rf openssl-3.3.1 openssl-3.3.1.tar.gz
 
-RUN wget https://nodejs.org/dist/v22.23.0/node-v22.23.0-linux-x64.tar.xz && \
-    tar -xf node-v22.23.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
-    rm node-v22.23.0-linux-x64.tar.xz
+RUN wget https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.xz && \
+    tar -xf node-v26.9.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
+    rm node-v26.9.0-linux-x64.tar.xz
 
 RUN git config --global --add safe.directory '*'
 
