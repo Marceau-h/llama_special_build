@@ -55,14 +55,14 @@ ENV PATH="/usr/local/bin/ccache_stubs:/opt/rh/gcc-toolset-13/root/usr/bin:${PATH
 
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
 
-RUN wget https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz && \
-    tar -xzf zlib-1.3.1.tar.gz && \
-    cd zlib-1.3.1 && \
+RUN wget https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.xz && \
+    tar -xJf zlib-1.4.tar.xz && \
+    cd zlib-1.4 && \
     ./configure --static && \
     make -j$(nproc) && \
     make install && \
     cd .. && \
-    rm -rf zlib-1.3.1 zlib-1.3.1.tar.gz
+    rm -rf zlib-1.4 zlib-1.4.tar.xz
 
 RUN wget https://github.com/openssl/openssl/releases/download/openssl-3.3.1/openssl-3.3.1.tar.gz && \
     tar -xzf openssl-3.3.1.tar.gz && \
