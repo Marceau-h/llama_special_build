@@ -1,5 +1,6 @@
 .idea/
 llama.cpp/
+build/
 
 *.Dockerfile
 !Dockerfile

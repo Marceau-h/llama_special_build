@@ -80,6 +80,9 @@ fi
 echo "================================="
 echo "MAKE"
 echo "================================="
+BUILD_DIR="${BUILD_DIR:-build}"
+BUILD_BASE="/work/${BUILD_DIR}"
+
 MAKE_COMMAND="\
     export CC=gcc CXX=g++ && \
     make -f /work/${MAKEFILE} ${REAL_TARGET} \
@@ -91,10 +94,10 @@ docker run --rm -it --network=host \
     -e CPU_FLAGS="${CPU_FLAGS}" \
     -e PKG_STATIC="${PKG_STATIC}" \
     -e PKG_DYNAMIC="${PKG_DYNAMIC}" \
-    -e BUILD_STATIC="build_static_${PKG_PREFIX}" \
-    -e BUILD_DYNAMIC="build_dynamic_${PKG_PREFIX}" \
-    -e DIST_STATIC="dist_static_${PKG_PREFIX}" \
-    -e DIST_DYNAMIC="dist_dynamic_${PKG_PREFIX}" \
+    -e BUILD_STATIC="${BUILD_BASE}/build_static_${PKG_PREFIX}" \
+    -e BUILD_DYNAMIC="${BUILD_BASE}/build_dynamic_${PKG_PREFIX}" \
+    -e DIST_STATIC="${BUILD_BASE}/dist_static_${PKG_PREFIX}" \
+    -e DIST_DYNAMIC="${BUILD_BASE}/dist_dynamic_${PKG_PREFIX}" \
     -v "${SCRIPT_DIR}:/work:Z" \
     -v "${LLAMA_DIR}:/work/${LLAMA_DIR_NAME}:Z" \
     -w "/work/${LLAMA_DIR_NAME}" \

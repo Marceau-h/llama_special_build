@@ -11,10 +11,11 @@ GGML_NATIVE ?= OFF
 CPU_FLAGS ?= 
 PKG_STATIC ?= llama-static-portable.tar.gz
 PKG_DYNAMIC ?= llama-dynamic-portable.tar.gz
-BUILD_STATIC ?= build_static
-DIST_STATIC ?= dist_static
-BUILD_DYNAMIC ?= build_dynamic
-DIST_DYNAMIC ?= dist_dynamic
+BUILD_DIR ?= /work/build
+BUILD_STATIC ?= $(BUILD_DIR)/build_static
+DIST_STATIC ?= $(BUILD_DIR)/dist_static
+BUILD_DYNAMIC ?= $(BUILD_DIR)/build_dynamic
+DIST_DYNAMIC ?= $(BUILD_DIR)/dist_dynamic
 
 build_static:
 	@echo "--- Configuring llama.cpp (Static) ---"
@@ -105,6 +106,6 @@ package_dynamic: build_dynamic
 package: package_static package_dynamic
 
 clean:
-	rm -rf $(BUILD_STATIC) $(DIST_STATIC) $(PKG_STATIC)
-	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) $(PKG_DYNAMIC)
+	rm -rf $(BUILD_STATIC) $(DIST_STATIC) /work/$(PKG_STATIC) $(PKG_STATIC)
+	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) /work/$(PKG_DYNAMIC) $(PKG_DYNAMIC)
 
