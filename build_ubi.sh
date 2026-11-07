@@ -91,6 +91,7 @@ MAKE_COMMAND="\
 docker run --rm -it --network=host \
     --entrypoint bash \
     -e NVIDIA_VISIBLE_DEVICES=none \
+    -e CCACHE_DIR="${BUILD_BASE}/ccache" \
     -e ARCHS="${ARCHS}" \
     -e GGML_NATIVE="${GGML_NATIVE}" \
     -e CPU_FLAGS="${CPU_FLAGS}" \
