@@ -104,7 +104,7 @@ docker run --rm -it --network=host \
     -v "${LLAMA_DIR}:/work/${LLAMA_DIR_NAME}:Z" \
     -w "/work/${LLAMA_DIR_NAME}" \
     "${DOCKER_USER}/${OUT_IMG}:${LABEL}" \
-    bash -c "${MAKE_COMMAND}"
+    -c "${MAKE_COMMAND}"
 
 echo "Outputs :"
 echo "- ${SCRIPT_DIR}/${PKG_STATIC}"
