@@ -23,8 +23,12 @@ LOCAL_DOCKERFILE_HASH=$(sha256sum "${SCRIPT_DIR}/${DOCKERFILE_BASE}" | awk '{pri
 
 set +a
 
+if [ ! -x "$(command -v docker buildx)" ]; then
+    log_error "docker buildx not found."
+    exit 1
+fi
 
-if [ docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1 ] && [ ${NO_CACHE:-false} != "true" ]; then
+if [ "${NO_CACHE:-false}" != "true" ] && docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1; then
     log_info "Image ${GHCR_IMAGE_NAME} found"
     docker buildx build \
         -t "${DOCKER_IMAGE_NAME}" \
