@@ -23,7 +23,7 @@ LOCAL_DOCKERFILE_HASH=$(sha256sum "${SCRIPT_DIR}/${DOCKERFILE_BASE}" | awk '{pri
 
 set +a
 
-if [ ! -x "$(command -v docker buildx)" ]; then
+if ! docker buildx version > /dev/null 2>&1; then
     log_error "docker buildx not found."
     exit 1
 fi
