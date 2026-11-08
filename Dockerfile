@@ -27,6 +27,8 @@ ENV DEPS="\
     libnccl-static \
     libstdc++-static \
     libatomic \
+    zstd \
+    lld \
     "
 
 RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked \
