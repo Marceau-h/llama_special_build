@@ -75,9 +75,6 @@ RUN wget https://github.com/openssl/openssl/releases/download/openssl-4.1.0/open
     cd .. && \
     rm -rf openssl-4.1.0 openssl-4.1.0.tar.gz
 
-RUN wget https://nodejs.org/dist/v26.9.0/node-v26.9.0-linux-x64.tar.xz && \
-    tar -xf node-v26.9.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
-    rm node-v26.9.0-linux-x64.tar.xz
 RUN wget https://nodejs.org/dist/v26.13.0/node-v26.13.0-linux-x64.tar.xz && \
     tar -xf node-v26.13.0-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
     rm node-v26.13.0-linux-x64.tar.xz
