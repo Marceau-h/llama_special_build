@@ -16,6 +16,14 @@ BUILD_STATIC ?= $(BUILD_DIR)/build_static
 DIST_STATIC ?= $(BUILD_DIR)/dist_static
 BUILD_DYNAMIC ?= $(BUILD_DIR)/build_dynamic
 DIST_DYNAMIC ?= $(BUILD_DIR)/dist_dynamic
+PKG_STATIC ?= llama-static-portable.tar.zst
+PKG_DYNAMIC ?= llama-dynamic-portable.tar.zst
+BUILD_DIR ?= build
+BUILD_BASE := $(if $(filter /%,$(BUILD_DIR)),$(BUILD_DIR),/work/$(BUILD_DIR))
+BUILD_STATIC ?= $(BUILD_BASE)/build_static
+DIST_STATIC ?= $(BUILD_BASE)/dist_static
+BUILD_DYNAMIC ?= $(BUILD_BASE)/build_dynamic
+DIST_DYNAMIC ?= $(BUILD_BASE)/dist_dynamic
 
 build_static:
 	@echo "--- Configuring llama.cpp (Static) ---"
