@@ -57,8 +57,8 @@ build_static:
 		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -fuse-ld=lld" \
 		-DCMAKE_CUDA_FLAGS="--compiler-options -static-libgcc"
 	@echo "--- Building llama.cpp (Static) ---"
-	cmake --build $(BUILD_STATIC) -j$$(($$(nproc) - 1))
 	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
+	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
 build_dynamic:
 	@echo "--- Configuring llama.cpp (Dynamic) ---"
@@ -83,11 +83,11 @@ build_dynamic:
 		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -ldl" \
 		-DCMAKE_INSTALL_RPATH='$$ORIGIN:$$ORIGIN/../lib' \
 		-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs"
+		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs -fuse-ld=lld" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs -fuse-ld=lld"
 	@echo "--- Building llama.cpp (Dynamic) ---"
-	cmake --build $(BUILD_DYNAMIC) -j$$(($$(nproc) - 1))
 	cmake --build $(BUILD_DYNAMIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
+	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
 package_static: build_static
 	@echo "--- Packaging (Static) ---"
