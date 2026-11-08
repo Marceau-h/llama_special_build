@@ -134,7 +134,7 @@ package_static: build_static
 	tar -C $(DIST_STATIC) -I 'zstd -T$(ZSTD_THREADS)' -cf /work/$(PKG_STATIC) .
 	@echo "--- Created $(PKG_STATIC) ---"
 
-package_dynamic: build_dynamic
+package_dynamic: build_dynamic | package_static
 	@echo "--- Packaging (Dynamic) ---"
 	rm -rf $(DIST_DYNAMIC)
 	mkdir -p $(DIST_DYNAMIC)/bin $(DIST_DYNAMIC)/lib
