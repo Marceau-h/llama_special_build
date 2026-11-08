@@ -9,13 +9,6 @@ SHELL := /bin/bash
 ARCHS ?= 86;89
 GGML_NATIVE ?= OFF
 CPU_FLAGS ?= 
-PKG_STATIC ?= llama-static-portable.tar.gz
-PKG_DYNAMIC ?= llama-dynamic-portable.tar.gz
-BUILD_DIR ?= /work/build
-BUILD_STATIC ?= $(BUILD_DIR)/build_static
-DIST_STATIC ?= $(BUILD_DIR)/dist_static
-BUILD_DYNAMIC ?= $(BUILD_DIR)/build_dynamic
-DIST_DYNAMIC ?= $(BUILD_DIR)/dist_dynamic
 PKG_STATIC ?= llama-static-portable.tar.zst
 PKG_DYNAMIC ?= llama-dynamic-portable.tar.zst
 BUILD_DIR ?= build
@@ -24,6 +17,20 @@ BUILD_STATIC ?= $(BUILD_BASE)/build_static
 DIST_STATIC ?= $(BUILD_BASE)/dist_static
 BUILD_DYNAMIC ?= $(BUILD_BASE)/build_dynamic
 DIST_DYNAMIC ?= $(BUILD_BASE)/dist_dynamic
+UI_CACHE_DIR ?= $(BUILD_BASE)/ui_cache
+
+restore_ui_cache:
+	@mkdir -p $(UI_CACHE_DIR)
+	@UI_HASH=$$(git -C /work/llama.cpp rev-parse HEAD:tools/ui 2>/dev/null || echo "none") ; \
+	if [ -n "$$UI_HASH" ] && [ "$$UI_HASH" != "none" ]; then \
+		flock $(UI_CACHE_DIR)/.lock bash -c " \
+			if [ -f '$(UI_CACHE_DIR)/'\"$$UI_HASH\"'/index.html' ]; then \
+				mkdir -p /work/llama.cpp/tools/ui/dist && \
+				cp -a '$(UI_CACHE_DIR)/'\"$$UI_HASH\"'/'* /work/llama.cpp/tools/ui/dist/ && \
+				echo '--- Restored UI from cache ($$UI_HASH) ---' ; \
+			fi \
+		" ; \
+	fi
 
 build_static:
 	@echo "--- Configuring llama.cpp (Static) ---"
@@ -51,6 +58,7 @@ build_static:
 		-DCMAKE_CUDA_FLAGS="--compiler-options -static-libgcc"
 	@echo "--- Building llama.cpp (Static) ---"
 	cmake --build $(BUILD_STATIC) -j$$(($$(nproc) - 1))
+	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
 
 build_dynamic:
 	@echo "--- Configuring llama.cpp (Dynamic) ---"
@@ -79,6 +87,7 @@ build_dynamic:
 		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs"
 	@echo "--- Building llama.cpp (Dynamic) ---"
 	cmake --build $(BUILD_DYNAMIC) -j$$(($$(nproc) - 1))
+	cmake --build $(BUILD_DYNAMIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
 
 package_static: build_static
 	@echo "--- Packaging (Static) ---"
