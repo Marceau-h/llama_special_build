@@ -19,6 +19,10 @@ BUILD_DYNAMIC ?= $(BUILD_BASE)/build_dynamic
 DIST_DYNAMIC ?= $(BUILD_BASE)/dist_dynamic
 UI_CACHE_DIR ?= $(BUILD_BASE)/ui_cache
 
+MAKE_J := $(firstword $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS))))
+JOBS ?= $(if $(MAKE_J),$(MAKE_J),1)
+ZSTD_THREADS ?= $(JOBS)
+
 restore_ui_cache:
 	@mkdir -p $(UI_CACHE_DIR)
 	@UI_HASH=$$(git -C /work/llama.cpp rev-parse HEAD:tools/ui 2>/dev/null || echo "none") ; \
@@ -57,7 +61,7 @@ build_static:
 		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -fuse-ld=lld" \
 		-DCMAKE_CUDA_FLAGS="--compiler-options -static-libgcc"
 	@echo "--- Building llama.cpp (Static) ---"
-	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
+	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$(JOBS)
 	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
 build_dynamic:
@@ -86,7 +90,7 @@ build_dynamic:
 		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs -fuse-ld=lld" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link=/usr/local/cuda/lib64/stubs -fuse-ld=lld"
 	@echo "--- Building llama.cpp (Dynamic) ---"
-	cmake --build $(BUILD_DYNAMIC) --target llama-cli llama-server -j$$(($$(nproc) - 1))
+	cmake --build $(BUILD_DYNAMIC) --target llama-cli llama-server -j$(JOBS)
 	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
 package_static: build_static
@@ -97,7 +101,7 @@ package_static: build_static
 	cp -a $(BUILD_STATIC)/bin/llama-cli $(DIST_STATIC)/
 	cp -a $(BUILD_STATIC)/bin/llama-server $(DIST_STATIC)/
 
-	tar -C $(DIST_STATIC) -I 'zstd -T8' -cf /work/$(PKG_STATIC) .
+	tar -C $(DIST_STATIC) -I 'zstd -T$(ZSTD_THREADS)' -cf /work/$(PKG_STATIC) .
 	@echo "--- Created $(PKG_STATIC) ---"
 
 package_dynamic: build_dynamic
@@ -122,7 +126,7 @@ package_dynamic: build_dynamic
 	cp /work/run-llama-server.sh $(DIST_DYNAMIC)/bin/run-llama-server.sh
 	chmod +x $(DIST_DYNAMIC)/bin/run-llama-server.sh
 
-	tar -C $(DIST_DYNAMIC) -I 'zstd -T8' -cf /work/$(PKG_DYNAMIC) .
+	tar -C $(DIST_DYNAMIC) -I 'zstd -T$(ZSTD_THREADS)' -cf /work/$(PKG_DYNAMIC) .
 	@echo "--- Created $(PKG_DYNAMIC) ---"
 
 package: package_static package_dynamic

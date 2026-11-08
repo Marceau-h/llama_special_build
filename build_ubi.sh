@@ -94,11 +94,14 @@ echo "MAKE"
 echo "================================="
 BUILD_DIR="${BUILD_DIR:-build}"
 BUILD_BASE="/work/${BUILD_DIR}"
+NPROC="$(nproc 2>/dev/null || echo 1)"
+DEFAULT_JOBS="$(( NPROC > 1 ? NPROC - 1 : 1 ))"
+JOBS="${JOBS:-$DEFAULT_JOBS}"
 
 MAKE_COMMAND="\
     export CC=gcc CXX=g++ && \
     make -f /work/${MAKEFILE} clean && \
-    make -f /work/${MAKEFILE} ${REAL_TARGET} && \
+    make -f /work/${MAKEFILE} -j${JOBS} ${REAL_TARGET} && \
     make -f /work/${MAKEFILE} clean_post
     "
 
@@ -106,6 +109,7 @@ docker run --rm -it --network=host \
     --entrypoint bash \
     -e NVIDIA_VISIBLE_DEVICES=none \
     -e CCACHE_DIR="${BUILD_BASE}/ccache" \
+    -e JOBS="${JOBS:-}" \
     -e ARCHS="${ARCHS}" \
     -e GGML_NATIVE="${GGML_NATIVE}" \
     -e CPU_FLAGS="${CPU_FLAGS}" \
