@@ -114,3 +114,7 @@ clean:
 	rm -rf $(BUILD_STATIC) $(DIST_STATIC) /work/$(PKG_STATIC) $(PKG_STATIC)
 	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) /work/$(PKG_DYNAMIC) $(PKG_DYNAMIC)
 
+clean_post:
+	rm -rf $(BUILD_STATIC) $(DIST_STATIC)
+	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC)
+
