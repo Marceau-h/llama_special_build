@@ -71,9 +71,20 @@ echo "GIT"
 echo "====================================="
 if [ ! -d "${LLAMA_DIR}" ]; then
     git clone "${LLAMA_REPO}" "${LLAMA_DIR}"
+fi
+
+git -C "${LLAMA_DIR}" reset --hard HEAD
+git -C "${LLAMA_DIR}" fetch --all --tags
+
+LLAMA_REF="${LLAMA_REF:-master}"
+
+if [ "${LLAMA_REF}" = "master" ]; then
+    git -C "${LLAMA_DIR}" checkout -B master origin/master
+elif [ "${LLAMA_REF}" = "latest_tag" ]; then
+    LATEST_TAG="$(git -C "${LLAMA_DIR}" describe --tags --abbrev=0 origin/master)"
+    git -C "${LLAMA_DIR}" checkout "${LATEST_TAG}"
 else
-    git -C "${LLAMA_DIR}" reset --hard HEAD
-    git -C "${LLAMA_DIR}" pull
+    git -C "${LLAMA_DIR}" checkout "${LLAMA_REF}"
 fi
 
 git -C "${LLAMA_DIR}" apply "${SCRIPT_DIR}/ca_probe.patch"
