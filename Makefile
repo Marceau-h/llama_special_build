@@ -39,7 +39,7 @@ build_static:
 		-DOPENSSL_USE_STATIC_LIBS=ON \
 		-DNCCL_LIBRARY=/usr/lib64/libnccl_static.a \
 		-DCMAKE_CXX_STANDARD_LIBRARIES="-lstdc++fs -L/usr/local/cuda/lib64 -lcudart_static -lcudadevrt -lrt -lpthread -ldl" \
-		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+		-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -fuse-ld=lld" \
 		-DCMAKE_CUDA_FLAGS="--compiler-options -static-libgcc"
 	@echo "--- Building llama.cpp (Static) ---"
 	cmake --build $(BUILD_STATIC) -j$$(($$(nproc) - 1))
@@ -80,7 +80,7 @@ package_static: build_static
 	cp -a $(BUILD_STATIC)/bin/llama-cli $(DIST_STATIC)/
 	cp -a $(BUILD_STATIC)/bin/llama-server $(DIST_STATIC)/
 
-	tar -C $(DIST_STATIC) -czf /work/$(PKG_STATIC) .
+	tar -C $(DIST_STATIC) -I 'zstd -T8' -cf /work/$(PKG_STATIC) .
 	@echo "--- Created $(PKG_STATIC) ---"
 
 package_dynamic: build_dynamic
@@ -105,7 +105,7 @@ package_dynamic: build_dynamic
 	cp /work/run-llama-server.sh $(DIST_DYNAMIC)/bin/run-llama-server.sh
 	chmod +x $(DIST_DYNAMIC)/bin/run-llama-server.sh
 
-	tar -C $(DIST_DYNAMIC) -czf /work/$(PKG_DYNAMIC) .
+	tar -C $(DIST_DYNAMIC) -I 'zstd -T8' -cf /work/$(PKG_DYNAMIC) .
 	@echo "--- Created $(PKG_DYNAMIC) ---"
 
 package: package_static package_dynamic

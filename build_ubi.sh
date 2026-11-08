@@ -50,8 +50,8 @@ else
     exit 1
 fi
 
-PKG_STATIC="${PKG_PREFIX}-static.tar.gz"
-PKG_DYNAMIC="${PKG_PREFIX}-dynamic.tar.gz"
+PKG_STATIC="${PKG_PREFIX}-static.tar.zst"
+PKG_DYNAMIC="${PKG_PREFIX}-dynamic.tar.zst"
 
 if [[ "$MAKE_TARGET" == "package" ]]; then
     REAL_TARGET="package"

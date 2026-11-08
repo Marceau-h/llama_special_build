@@ -6,5 +6,6 @@ build/
 !Dockerfile
 
 *.tar.gz
+*.tar.zst
 *.zip
 *.log
