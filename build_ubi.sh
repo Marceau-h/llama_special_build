@@ -88,7 +88,7 @@ MAKE_COMMAND="\
     export CC=gcc CXX=g++ && \
     make -f /work/${MAKEFILE} clean && \
     make -f /work/${MAKEFILE} ${REAL_TARGET} && \
-    make -f /work/${MAKEFILE} clean
+    make -f /work/${MAKEFILE} clean_post
     "
 
 docker run --rm -it --network=host \

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL := package
-.PHONY: build_static build_dynamic package_static package_dynamic package clean
+.PHONY: build_static build_dynamic package_static package_dynamic package clean clean_post
 
 # Include environment variables
 -include $(dir $(abspath $(lastword $(MAKEFILE_LIST)))).env
