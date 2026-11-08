@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL := package
-.PHONY: build_static build_dynamic package_static package_dynamic package clean clean_post
+.PHONY: build_static build_dynamic package_static package_dynamic package clean clean_post restore_ui_cache save_ui_cache
 
 # Include environment variables
 -include $(dir $(abspath $(lastword $(MAKEFILE_LIST)))).env
@@ -36,7 +36,33 @@ restore_ui_cache:
 		" ; \
 	fi
 
-build_static:
+save_ui_cache:
+	@mkdir -p $(UI_CACHE_DIR)
+	@UI_HASH=$$(git -C /work/llama.cpp rev-parse HEAD:tools/ui 2>/dev/null || echo "none") ; \
+	if [ -n "$$UI_HASH" ] && [ "$$UI_HASH" != "none" ]; then \
+		flock $(UI_CACHE_DIR)/.lock bash -c " \
+			if [ ! -f '$(UI_CACHE_DIR)/'\"$$UI_HASH\"'/index.html' ]; then \
+				SRC='' ; \
+				if [ -f '$(BUILD_STATIC)/tools/ui/dist/index.html' ]; then \
+					SRC='$(BUILD_STATIC)/tools/ui/dist' ; \
+				elif [ -f '$(BUILD_DYNAMIC)/tools/ui/dist/index.html' ]; then \
+					SRC='$(BUILD_DYNAMIC)/tools/ui/dist' ; \
+				fi ; \
+				if [ -n \"\$$SRC\" ]; then \
+					mkdir -p '$(UI_CACHE_DIR)/'\"$$UI_HASH.tmp\" && \
+					cp -a \"\$$SRC\"/* '$(UI_CACHE_DIR)/'\"$$UI_HASH.tmp/\" && \
+					mv -T '$(UI_CACHE_DIR)/'\"$$UI_HASH.tmp\" '$(UI_CACHE_DIR)/'\"$$UI_HASH\" && \
+					echo '--- Cached built UI ($$UI_HASH) ---' ; \
+				fi ; \
+			fi ; \
+			if [ -d '$(UI_CACHE_DIR)/'\"$$UI_HASH\" ] && [ ! -f '/work/llama.cpp/tools/ui/dist/index.html' ]; then \
+				mkdir -p /work/llama.cpp/tools/ui/dist && \
+				cp -a '$(UI_CACHE_DIR)/'\"$$UI_HASH\"'/'* /work/llama.cpp/tools/ui/dist/ ; \
+			fi \
+		" ; \
+	fi
+
+build_static: restore_ui_cache
 	@echo "--- Configuring llama.cpp (Static) ---"
 	mkdir -p $(BUILD_STATIC)
 	cmake -B $(BUILD_STATIC) -S . -G Ninja \
@@ -64,7 +90,7 @@ build_static:
 	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$(JOBS)
 	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
-build_dynamic:
+build_dynamic: restore_ui_cache
 	@echo "--- Configuring llama.cpp (Dynamic) ---"
 	mkdir -p $(BUILD_DYNAMIC)
 	cmake -B $(BUILD_DYNAMIC) -S . -G Ninja \
@@ -134,8 +160,10 @@ package: package_static package_dynamic
 clean:
 	rm -rf $(BUILD_STATIC) $(DIST_STATIC) /work/$(PKG_STATIC) $(PKG_STATIC)
 	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) /work/$(PKG_DYNAMIC) $(PKG_DYNAMIC)
+	rm -rf /work/llama.cpp/tools/ui/dist
 
 clean_post:
 	rm -rf $(BUILD_STATIC) $(DIST_STATIC)
 	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC)
+	rm -rf /work/llama.cpp/tools/ui/dist
 
