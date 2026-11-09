@@ -62,6 +62,23 @@ fi
 LABEL="${CUDA}-${FLAVOR}-${OS}"
 LLAMA_DIR="${SCRIPT_DIR}/${LLAMA_DIR_NAME}"
 
+echo "====================================="
+echo "Configuration"
+echo "====================================="
+echo "TARGET: ${TARGET}"
+echo "MAKE_TARGET: ${MAKE_TARGET}"
+echo "REAL_TARGET: ${REAL_TARGET}"
+
+echo "OS: ${OS}"
+echo "ARCHS: ${ARCHS}"
+echo "CPU_FLAGS: ${CPU_FLAGS}"
+
+echo "DOCKER_IMAGE_NAME: ${DOCKER_IMAGE_NAME}"
+echo "LABEL: ${LABEL}"
+
+env > "${SCRIPT_DIR}/build_full_env.log"
+echo "See full configuration in ${SCRIPT_DIR}/build_full_env.log"
+
 set +a
 
 cd "${SCRIPT_DIR}"
