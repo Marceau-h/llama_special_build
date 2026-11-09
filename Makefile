@@ -92,7 +92,7 @@ build_static: restore_ui_cache
 	cmake --build $(BUILD_STATIC) --target llama-cli llama-server -j$(JOBS)
 	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) save_ui_cache
 
-build_dynamic: restore_ui_cache
+build_dynamic: restore_ui_cache | build_static
 	@echo "--- Configuring llama.cpp (Dynamic) ---"
 	mkdir -p $(BUILD_DYNAMIC)
 	cmake -B $(BUILD_DYNAMIC) -S . -G Ninja \
