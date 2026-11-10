@@ -2,34 +2,57 @@ name: Docker Build and Push
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Free Disk Space and Move Docker to /mnt
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
+          if systemctl is-active --quiet docker 2>/dev/null; then
+            sudo systemctl stop docker 2>/dev/null || true
+            sudo mkdir -p /mnt/docker
+            sudo mv /var/lib/docker /mnt/docker/data 2>/dev/null || true
+            sudo ln -s /mnt/docker/data /var/lib/docker 2>/dev/null || true
+            sudo systemctl start docker 2>/dev/null || true
+          fi
+          df -h / /mnt 2>/dev/null || true
 
       - name: Load .env file
         id: env
         uses: falti/dotenv-action@v1.2.1
+        with:
+          export-variables: true
+          keys-case: bypass
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4.1.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
+        if: env.DOCKERHUB_TOKEN != ''
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
           username: ${{ steps.env.outputs.DOCKER_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -38,59 +61,68 @@ jobs:
       - name: Check if build is needed
         id: check_build
         run: |
-          LAST_BUILD_COMMIT=$(jq -r .last_build_commit last_build.json || echo "")
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual trigger - build forced"
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_BUILD_COMMIT=$(jq -r .last_build_commit last_build.json 2>/dev/null || echo "")
           if [[ -z "$LAST_BUILD_COMMIT" ]]; then
-            echo "No build found"
-            echo "::set-output name=needs_build::true"
+            echo "No previous build commit found"
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [[ "$LAST_BUILD_COMMIT" == "${{ github.sha }}" ]]; then
-            echo "Code has not changed"
-            echo "::set-output name=needs_build::false"
+            echo "Commit unchanged"
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Code has changed and last build commit is $LAST_BUILD_COMMIT"
-          git diff --quiet $LAST_BUILD_COMMIT ${{ github.sha }} -- .env build_docker.sh Dockerfile
-          if [[ $? -eq 0 ]]; then
-            echo "No relevant changes"
-            echo "::set-output name=needs_build::false"
+          if git diff --quiet "$LAST_BUILD_COMMIT" "${{ github.sha }}" -- .env build_docker.sh Dockerfile; then
+            echo "No builder file changes"
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Relevant files changed"
-            echo "::set-output name=needs_build::true"
+            echo "Builder files changed"
+            echo "needs_build=true" >> "$GITHUB_OUTPUT"
           fi
-          
-
-      - name: Move Docker data to /mnt
-        run: |
-          sudo systemctl stop docker
-          sudo mv /var/lib/docker /mnt/docker
-          sudo ln -s /mnt/docker /var/lib/docker
-          sudo systemctl start docker
-          docker info | grep "Docker Root Dir"
 
       - name: Build and Push Docker image
         if: steps.check_build.outputs.needs_build == 'true'
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          SKIP_PUSH: ${{ secrets.SKIP_PUSH }}
         run: |
           chmod +x build_docker.sh
           ./build_docker.sh
-          
-          docker tag ${{ steps.env.outputs.DOCKER_IMAGE_NAME }} ghcr.io/${{ steps.env.outputs.GHCR_REPO }}:${{ steps.env.outputs.LABEL }}
-          docker push ${{ steps.env.outputs.DOCKER_IMAGE_NAME }}
-          docker push ghcr.io/${{ steps.env.outputs.GHCR_REPO }}:${{ steps.env.outputs.LABEL }}
+
+          docker tag "$DOCKER_IMAGE_NAME" "$GHCR_IMAGE_NAME"
+          if [ "$SKIP_PUSH" != "true" ]; then
+            if [ -n "$DOCKERHUB_TOKEN" ]; then
+              docker push "$DOCKER_IMAGE_NAME" || true
+            fi
+            docker push "$GHCR_IMAGE_NAME" || true
+          fi
 
       - name: Update last build info
         if: steps.check_build.outputs.needs_build == 'true'
+        env:
+          SKIP_PUSH: ${{ secrets.SKIP_PUSH }}
         run: |
-          DOCKERFILE_HASH=$(docker inspect --format '{{ index .Config.Labels "DOCKERFILE_HASH"}}' ${{ steps.env.outputs.DOCKER_IMAGE_NAME }})
+          if [ "$SKIP_PUSH" = "true" ]; then
+            exit 0
+          fi
+          DOCKERFILE_HASH=$(docker inspect --format '{{ index .Config.Labels "DOCKERFILE_HASH"}}' "$DOCKER_IMAGE_NAME")
           
           echo '{
             "last_build_commit": "${{ github.sha }}",
-            "build_date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-            "docker_image": "'${{ steps.env.outputs.DOCKER_IMAGE_NAME }}'",
+            "build_date": "'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'",
+            "docker_image": "'$DOCKER_IMAGE_NAME'",
             "dockerfile_hash": "'$DOCKERFILE_HASH'"
           }' > last_build.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add last_build.json
-          git commit -m "Update last build info"
-          git push
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update last build info [skip ci]" && git push)
