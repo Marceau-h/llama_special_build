@@ -23,6 +23,8 @@ else
     exit 1
 fi
 
+TARGET="${1:-${TARGET}}"
+
 # Parse TARGET profile
 if [[ "$TARGET" == default_* ]]; then
     OS="ubi8"
