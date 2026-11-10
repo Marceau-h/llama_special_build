@@ -28,23 +28,27 @@ if ! docker buildx version > /dev/null 2>&1; then
     exit 1
 fi
 
-if [ "${NO_CACHE:-false}" != "true" ] && docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1; then
-    log_info "Image ${GHCR_IMAGE_NAME} found"
-    docker buildx build \
-        -t "${DOCKER_IMAGE_NAME}" \
-        -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
-        --build-arg IMG="${IMG}" \
-        --cache-from "${GHCR_IMAGE_NAME}" \
-        --label "DOCKERFILE_HASH=${LOCAL_DOCKERFILE_HASH}" \
-        "${SCRIPT_DIR}"
-else
-    log_info "Image ${GHCR_IMAGE_NAME} not found"
-    docker buildx build \
-        -t "${DOCKER_IMAGE_NAME}" \
-        -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
-        --build-arg IMG="${IMG}" \
-        --label "DOCKERFILE_HASH=${LOCAL_DOCKERFILE_HASH}" \
-        "${SCRIPT_DIR}"
+CACHE_ARGS=()
+
+if [ "${NO_CACHE:-false}" != "true" ]; then
+    if docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1; then
+        CACHE_ARGS+=(--cache-from "${GHCR_IMAGE_NAME}")
+    elif docker pull "${DOCKER_IMAGE_NAME}" > /dev/null 2>&1; then
+        CACHE_ARGS+=(--cache-from "${DOCKER_IMAGE_NAME}")
+    fi
+
+    if [ -n "${ACTIONS_CACHE_URL:-}" ]; then
+        CACHE_ARGS+=(--cache-from "type=gha" --cache-to "type=gha,mode=max")
+    fi
 fi
+
+docker buildx build \
+    --load \
+    -t "${DOCKER_IMAGE_NAME}" \
+    -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
+    --build-arg IMG="${IMG}" \
+    "${CACHE_ARGS[@]}" \
+    --label "DOCKERFILE_HASH=${LOCAL_DOCKERFILE_HASH}" \
+    "${SCRIPT_DIR}"
 
 log_info "Built Docker image: ${DOCKER_IMAGE_NAME}"
