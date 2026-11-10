@@ -100,9 +100,9 @@ jobs:
           docker tag "$DOCKER_IMAGE_NAME" "$GHCR_IMAGE_NAME"
           if [ "$SKIP_PUSH" != "true" ]; then
             if [ -n "$DOCKERHUB_TOKEN" ]; then
-              docker push "$DOCKER_IMAGE_NAME" || true
+              docker push "$DOCKER_IMAGE_NAME"
             fi
-            docker push "$GHCR_IMAGE_NAME" || true
+            docker push "$GHCR_IMAGE_NAME"
           fi
 
       - name: Update last build info
