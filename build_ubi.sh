@@ -24,6 +24,7 @@ else
 fi
 
 TARGET="${1:-${TARGET}}"
+LLAMA_REF="${2:-${LLAMA_REF:-${DEFAULT_LLAMA_REF:-master}}}"
 
 # Parse TARGET profile
 if [[ "$TARGET" == default_* ]]; then
@@ -95,7 +96,7 @@ fi
 git -C "${LLAMA_DIR}" reset --hard HEAD
 git -C "${LLAMA_DIR}" fetch --all --tags
 
-LLAMA_REF="${LLAMA_REF:-master}"
+LLAMA_REF="${LLAMA_REF:-${DEFAULT_LLAMA_REF:-master}}"
 
 if [ "${LLAMA_REF}" = "master" ]; then
     git -C "${LLAMA_DIR}" checkout -B master origin/master
@@ -105,6 +106,9 @@ elif [ "${LLAMA_REF}" = "latest_tag" ]; then
 else
     git -C "${LLAMA_DIR}" checkout "${LLAMA_REF}"
 fi
+
+LLAMA_COMMIT="$(git -C "${LLAMA_DIR}" rev-parse --short HEAD)"
+log_info "Checked out llama.cpp ref='${LLAMA_REF}' (commit ${LLAMA_COMMIT})"
 
 git -C "${LLAMA_DIR}" apply "${SCRIPT_DIR}/ca_probe.patch"
 
