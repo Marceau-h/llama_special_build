@@ -48,7 +48,7 @@ elif [[ "$TARGET" == tailored_* ]]; then
     PKG_PREFIX="llama-tailored"
     MAKE_TARGET="${TARGET#tailored_}"
 else
-    log_error "Invalid target: ${TARGET}. Valid prefixes: default_, full_, tailored_ (followed by static, dynamic, or package)"
+    log_error "Invalid target: ${TARGET}. Valid targets: ${LIST_TARGETS}"
     exit 1
 fi
 
