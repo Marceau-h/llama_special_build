@@ -1,6 +1,6 @@
 {
-  "last_build_commit": "ce81f8f0e273cd1717ba82fa8e8a644946d9fc83",
-  "build_date": "2026-11-11T02:03:47Z",
+  "last_build_commit": "fd290768fbb6df4ad955862b62bec297f518f327",
+  "build_date": "2026-11-11T16:56:29Z",
   "docker_image": "marceauh/cuda-builder:13.2.1-cudnn-devel-ubi8",
   "dockerfile_hash": "322a26479ad6ec13a9848abf56d2cb6ca4a8687af8b1c1aa182b91c8135ea57e"
 }
