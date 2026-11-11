@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -40,10 +40,10 @@ jobs:
           keys-case: bypass
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         if: env.DOCKERHUB_TOKEN != ''
         env:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -52,7 +52,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -95,15 +95,10 @@ jobs:
           SKIP_PUSH: ${{ secrets.SKIP_PUSH }}
         run: |
           chmod +x build_docker.sh
-          ./build_docker.sh
-
-          docker tag "$DOCKER_IMAGE_NAME" "$GHCR_IMAGE_NAME"
           if [ "$SKIP_PUSH" != "true" ]; then
-            if [ -n "$DOCKERHUB_TOKEN" ]; then
-              docker push "$DOCKER_IMAGE_NAME"
-            fi
-            docker push "$GHCR_IMAGE_NAME"
+            export PUSH_IMAGE=true
           fi
+          ./build_docker.sh
 
       - name: Update last build info
         if: steps.check_build.outputs.needs_build == 'true'
@@ -113,7 +108,7 @@ jobs:
           if [ "$SKIP_PUSH" = "true" ]; then
             exit 0
           fi
-          DOCKERFILE_HASH=$(docker inspect --format '{{ index .Config.Labels "DOCKERFILE_HASH"}}' "$DOCKER_IMAGE_NAME")
+          DOCKERFILE_HASH=$(sha256sum Dockerfile | awk '{print $1}')
           
           echo '{
             "last_build_commit": "${{ github.sha }}",
