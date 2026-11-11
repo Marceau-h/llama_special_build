@@ -38,10 +38,19 @@ if [ "${NO_CACHE:-false}" != "true" ]; then
     )
 fi
 
+OUTPUT_ARGS=()
+if [ "${PUSH:-false}" = "true" ] || [ "${PUSH_IMAGE:-false}" = "true" ] || [[ "${1:-}" == "--push" ]]; then
+    OUTPUT_ARGS=(--push)
+fi
+
+TAG_ARGS=(-t "${GHCR_IMAGE_NAME}")
+if [ "${#OUTPUT_ARGS[@]}" -eq 0 ] || [ -n "${DOCKERHUB_TOKEN:-}" ]; then
+    TAG_ARGS+=(-t "${DOCKER_IMAGE_NAME}")
+fi
+
 docker buildx build \
-    --load \
-    -t "${DOCKER_IMAGE_NAME}" \
-    -t "${GHCR_IMAGE_NAME}" \
+    "${OUTPUT_ARGS[@]}" \
+    "${TAG_ARGS[@]}" \
     -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
     --build-arg IMG="${IMG}" \
     "${CACHE_ARGS[@]}" \
