@@ -1,0 +1,193 @@
+name: Build Llama.cpp
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Build target profile'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - default_package
+          - tailored_package
+          - full_package
+          - default_static
+          - default_dynamic
+          - tailored_static
+          - tailored_dynamic
+          - full_static
+          - full_dynamic
+      llama_ref:
+        description: 'Git ref of llama.cpp (master, latest_tag, or specific tag/commit)'
+        required: false
+        default: ''
+        type: string
+      build_docker:
+        description: 'Rebuild Docker image before building llama'
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  resolve-targets:
+    name: Resolve Target Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.set-targets.outputs.targets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - id: set-targets
+        run: |
+          source .env
+
+          INPUT_TARGET="${{ github.event.inputs.target }}"
+
+          if [[ -z "$INPUT_TARGET" || "$INPUT_TARGET" == "all" ]]; then
+            read -r -a TARGET_LIST <<< "$ALL_TARGET"
+          else
+            valid=false
+            for t in $LIST_TARGETS; do
+              if [[ "$t" == "$INPUT_TARGET" ]]; then
+                valid=true
+                break
+              fi
+            done
+            if [[ "$valid" != "true" ]]; then
+              echo "Invalid target: '$INPUT_TARGET'. Valid targets: $LIST_TARGETS" >&2
+              exit 1
+            fi
+            TARGET_LIST=("$INPUT_TARGET")
+          fi
+
+          JSON_TARGETS=$(printf '%s\n' "${TARGET_LIST[@]}" | jq -R . | jq -s -c .)
+          echo "targets=${JSON_TARGETS}" >> "$GITHUB_OUTPUT"
+
+  docker-builder:
+    name: Check / Build Docker Image
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.build_docker == 'true'
+    uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
+
+  build-llama:
+    name: Build (${{ matrix.target }})
+    needs: [resolve-targets, docker-builder]
+    if: always() && (needs.docker-builder.result == 'success' || needs.docker-builder.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.resolve-targets.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Free Disk Space and Move Docker to /mnt
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
+          if systemctl is-active --quiet docker 2>/dev/null; then
+            sudo systemctl stop docker 2>/dev/null || true
+            sudo mkdir -p /mnt/docker
+            sudo mv /var/lib/docker /mnt/docker/data 2>/dev/null || true
+            sudo ln -s /mnt/docker/data /var/lib/docker 2>/dev/null || true
+            sudo systemctl start docker 2>/dev/null || true
+          fi
+          df -h / /mnt 2>/dev/null || true
+
+      - name: Load .env file
+        id: env
+        uses: falti/dotenv-action@v1.2.1
+        with:
+          export-variables: true
+          keys-case: bypass
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker Builder Image
+        run: |
+          docker pull "$GHCR_IMAGE_NAME" || docker pull "$DOCKER_IMAGE_NAME" || docker image inspect "$DOCKER_IMAGE_NAME"
+          docker tag "$GHCR_IMAGE_NAME" "$DOCKER_IMAGE_NAME" 2>/dev/null || true
+
+      - name: Cache ccache and UI cache
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/ccache
+            build/ui_cache
+          key: ${{ runner.os }}-llama-${{ matrix.target }}-${{ hashFiles('build_ubi.sh', 'Makefile', '.env', 'Dockerfile') }}-${{ github.event.inputs.llama_ref || 'master' }}
+          restore-keys: |
+            ${{ runner.os }}-llama-${{ matrix.target }}-${{ hashFiles('build_ubi.sh', 'Makefile', '.env', 'Dockerfile') }}-
+            ${{ runner.os }}-llama-${{ matrix.target }}-
+            ${{ runner.os }}-
+
+      - name: Build llama.cpp (${{ matrix.target }})
+        id: build
+        run: |
+          chmod +x build_ubi.sh
+          if [ -n "${{ github.event.inputs.llama_ref }}" ]; then
+            export LLAMA_REF="${{ github.event.inputs.llama_ref }}"
+          fi
+          export JOBS=$(nproc)
+          ./build_ubi.sh "${{ matrix.target }}"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-artifacts
+          path: |
+            llama-*.tar.zst
+            llama-*.tar.zst.sha256
+          retention-days: 1
+
+  release:
+    name: Publish Release
+    needs: build-llama
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.llama_ref != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_artifacts
+          pattern: '*-artifacts'
+          merge-multiple: true
+
+      - name: All Checksums
+        run: |
+          cd release_artifacts
+          sha256sum llama-*.tar.zst > SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('llama-{0}', github.event.inputs.llama_ref) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('llama.cpp {0}', github.event.inputs.llama_ref) }}
+          files: |
+            release_artifacts/llama-*.tar.zst
+            release_artifacts/llama-*.tar.zst.sha256
+            release_artifacts/SHA256SUMS.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
