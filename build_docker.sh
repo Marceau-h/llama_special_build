@@ -31,20 +31,17 @@ fi
 CACHE_ARGS=()
 
 if [ "${NO_CACHE:-false}" != "true" ]; then
-    if docker pull "${GHCR_IMAGE_NAME}" > /dev/null 2>&1; then
-        CACHE_ARGS+=(--cache-from "${GHCR_IMAGE_NAME}")
-    elif docker pull "${DOCKER_IMAGE_NAME}" > /dev/null 2>&1; then
-        CACHE_ARGS+=(--cache-from "${DOCKER_IMAGE_NAME}")
-    fi
-
-    if [ -n "${ACTIONS_CACHE_URL:-}" ]; then
-        CACHE_ARGS+=(--cache-from "type=gha" --cache-to "type=gha,mode=max")
-    fi
+    CACHE_ARGS+=(
+        --cache-from "${GHCR_IMAGE_NAME}"
+        --cache-from "${DOCKER_IMAGE_NAME}"
+        --cache-to type=inline
+    )
 fi
 
 docker buildx build \
     --load \
     -t "${DOCKER_IMAGE_NAME}" \
+    -t "${GHCR_IMAGE_NAME}" \
     -f "${SCRIPT_DIR}/${DOCKERFILE_BASE}" \
     --build-arg IMG="${IMG}" \
     "${CACHE_ARGS[@]}" \
