@@ -122,10 +122,12 @@ DEFAULT_JOBS="$(( NPROC > 1 ? NPROC - 1 : 1 ))"
 JOBS="${JOBS:-$DEFAULT_JOBS}"
 
 MAKE_COMMAND="\
-    export CC=gcc CXX=g++ && \
+    export CC=gcc CXX=g++ CCACHE_COMPRESS=1 CCACHE_MAXSIZE=3G && \
+    ccache -sv && \
     make -f /work/${MAKEFILE} clean && \
     make -f /work/${MAKEFILE} -j${JOBS} ${REAL_TARGET} && \
-    make -f /work/${MAKEFILE} clean_post
+    make -f /work/${MAKEFILE} clean_post && \
+    ccache -sv
     "
 
 docker run --rm --network=host \
