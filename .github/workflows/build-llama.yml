@@ -25,7 +25,7 @@ on:
         default: ''
         type: string
       release_tag:
-        description: 'Release tag for this repo (leave empty to auto-increment on fix)
+        description: 'Release tag for this repo (leave empty to auto-increment on fix)'
         required: false
         default: ''
         type: string
