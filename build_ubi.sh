@@ -124,7 +124,7 @@ MAKE_COMMAND="\
     make -f /work/${MAKEFILE} clean_post
     "
 
-docker run --rm -it --network=host \
+docker run --rm --network=host \
     --entrypoint bash \
     -e NVIDIA_VISIBLE_DEVICES=none \
     -e CCACHE_DIR="${BUILD_BASE}/ccache" \
