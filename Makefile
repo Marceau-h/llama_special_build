@@ -132,7 +132,8 @@ package_static: build_static
 	cp -a $(BUILD_STATIC)/bin/llama-server $(DIST_STATIC)/
 
 	tar -C $(DIST_STATIC) -I 'zstd -T$(ZSTD_THREADS)' -cf /work/$(PKG_STATIC) .
-	@echo "--- Created $(PKG_STATIC) ---"
+	cd /work && sha256sum $(PKG_STATIC) > $(PKG_STATIC).sha256
+	@echo "--- Created $(PKG_STATIC) and $(PKG_STATIC).sha256 ---"
 
 package_dynamic: build_dynamic | package_static
 	@echo "--- Packaging (Dynamic) ---"
@@ -157,13 +158,14 @@ package_dynamic: build_dynamic | package_static
 	chmod +x $(DIST_DYNAMIC)/bin/run-llama-server.sh
 
 	tar -C $(DIST_DYNAMIC) -I 'zstd -T$(ZSTD_THREADS)' -cf /work/$(PKG_DYNAMIC) .
-	@echo "--- Created $(PKG_DYNAMIC) ---"
+	cd /work && sha256sum $(PKG_DYNAMIC) > $(PKG_DYNAMIC).sha256
+	@echo "--- Created $(PKG_DYNAMIC) and $(PKG_DYNAMIC).sha256 ---"
 
 package: package_static package_dynamic
 
 clean:
-	rm -rf $(BUILD_STATIC) $(DIST_STATIC) /work/$(PKG_STATIC) $(PKG_STATIC)
-	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) /work/$(PKG_DYNAMIC) $(PKG_DYNAMIC)
+	rm -rf $(BUILD_STATIC) $(DIST_STATIC) /work/$(PKG_STATIC) /work/$(PKG_STATIC).sha256 $(PKG_STATIC) $(PKG_STATIC).sha256
+	rm -rf $(BUILD_DYNAMIC) $(DIST_DYNAMIC) /work/$(PKG_DYNAMIC) /work/$(PKG_DYNAMIC).sha256 $(PKG_DYNAMIC) $(PKG_DYNAMIC).sha256
 	rm -rf /work/llama.cpp/tools/ui/dist
 
 clean_post:

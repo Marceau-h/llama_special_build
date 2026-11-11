@@ -7,5 +7,6 @@ build/
 
 *.tar.gz
 *.tar.zst
+*.sha256
 *.zip
 *.log

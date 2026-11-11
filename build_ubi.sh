@@ -147,4 +147,6 @@ docker run --rm -it --network=host \
 
 echo "Outputs :"
 echo "- ${SCRIPT_DIR}/${PKG_STATIC}"
+echo "- ${SCRIPT_DIR}/${PKG_STATIC}.sha256"
 echo "- ${SCRIPT_DIR}/${PKG_DYNAMIC}"
+echo "- ${SCRIPT_DIR}/${PKG_DYNAMIC}.sha256"
