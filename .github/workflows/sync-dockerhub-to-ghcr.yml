@@ -1,0 +1,60 @@
+name: Sync Docker Hub to GHCR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space and Move Docker to /mnt
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
+          if systemctl is-active --quiet docker 2>/dev/null; then
+            sudo systemctl stop docker 2>/dev/null || true
+            sudo mkdir -p /mnt/docker
+            sudo mv /var/lib/docker /mnt/docker/data 2>/dev/null || true
+            sudo ln -s /mnt/docker/data /var/lib/docker 2>/dev/null || true
+            sudo systemctl start docker 2>/dev/null || true
+          fi
+          df -h / /mnt 2>/dev/null || true
+
+      - name: Load .env file
+        id: env
+        uses: falti/dotenv-action@v1.2.1
+        with:
+          export-variables: true
+          keys-case: bypass
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        if: env.DOCKERHUB_TOKEN != ''
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          username: ${{ steps.env.outputs.DOCKER_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, Tag, and Push
+        env:
+          SKIP_PUSH: ${{ secrets.SKIP_PUSH }}
+        run: |
+          docker pull "$DOCKER_IMAGE_NAME"
+          docker tag "$DOCKER_IMAGE_NAME" "$GHCR_IMAGE_NAME"
+          if [ "$SKIP_PUSH" != "true" ]; then
+            docker push "$GHCR_IMAGE_NAME"
+          fi
